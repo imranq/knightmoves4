@@ -15,165 +15,236 @@ Strategy: use depth-first search to pursue one whole path we meet a breaking con
 3. Return the end grid state for the first path where there's region equivalency
 
 '''
+import numpy as np
+from copy import copy, deepcopy
+import pdb
+
+knight_moves = []
+steps = [[-1,1], [[1,2],[2,1]]]
+for a in steps[0]:
+    for b in steps[0]:
+        for c in steps[1]:
+            knight_moves.append([a*c[0], b*c[1]])        
+# print(knight_moves)
+
 class Node():
-    pos = [0,0]
-    num = 0
-    children = {}
-
-    def __init__(self, pos, num):
-        self.pos = pos
-        self.num = num
-    
-    def set_child(self, idx, new_node):
-        self.children[idx] = new_node
-
-'''
-    This is the main class that constructs the graph of possibilities for the knights taking into consideration:
-    1. Fixed points given in the problem
-    2. Valid moves based on board size and sequential knight movement
-
-    And conducts DFS on the graph until a path is discovered where regions have equivalent sums
-'''
-
-class KnightGraph():
-    root = Node()
-    regions = []
-    num_regions = []
-    dim = 0
-    grid = []
     data = {}
-    dm = []
-    move_order = {}
-    self.num_moves = 0
+    regions = []
+    region_sums = []
+    grid = []
+    dim = 0
 
-    def __init__(self, regions, grid):
-        self.root = Node()
+    def __init__(self, grid, regions):
+        self.grid = deepcopy(grid)
+        self.dim = len(self.grid) 
+        self.data = {}
         self.regions = regions
-        self.grid = grid
-        self.num_regions = max([max(y) for y in regions])+1
-        self.dim = len(self.grid)
+        self.region_sums = []
+        
+        num_regions = max([max(x) in regions])
+        for x in range(0, num_regions):
+            self.region_sums.append(0)
+            self.complete_regions.append(0)
 
         for x in range(0, self.dim):
             for y in range(0, self.dim):
                 if self.grid[x][y] != 0:
-                    self.data[grid[x][y]] = [x,y]
-        
-        self.num_moves = max(self.data.keys())+5
+                    self.data[self.grid[x][y]] = [x,y]
+                    self.region_sums[self.regions[x][y]] += grid[x][y]
 
-        for v in [1,-1]: #up or down
-            for w in [1,-1]: # left or right
-                for z in [[1,2],[2,1]]: # [1,2] or [2,1]
-                    self.dm.append(v*z[0], w*z[1])
         
-        # self.dm.sort(key=lambda x: x[0]/4.1+x[1])
-        # for move, idx in enumerate(self.dm):
-        #     self.move_order[] 
+
     
-    '''
-    If each region has the same sum, then true, otherwise false
+    def __init__(self, grid_data, regions, region_sums, complete_regions):
+        self.data = {}
+        self.data = deepcopy(grid_data)
 
-    '''
+        self.regions = regions
+        self.region_sums = region_sums
+        self.complete_regions = complete_regions
+
     def regions_equivalent(self):
-        sums = [0]*self.num_regions
-        for x in range(0, self.dim):
-            for y in range(0, self.dim):                
-                sums[self.regions[x][y]] += self.grid[x][y]
+        if len(list(set(self.region_sums))) == 1:
+            return True        
+        return False
+    
+    def min_step(self):
+        return min([min(x) for x in self.grid])
 
-        for x in range(0,len(sums)-1):
-            if sums[x] != sums[x+1]:
+    def next_empty_move(self):
+        for x in range(2, self.dim**2+1):
+            if x not in self.data:
+                return x-1
+
+        return False
+
+    '''
+        Valid moves
+        - in the board
+        - connected to the next move if present
+        - is a knight move
+        - does not lead to a region having a higher sum than a complete region
+    '''
+    def is_valid_move(self, c, previous_move_num, d):
+        if c[0] >= self.dim or c[1] >= self.dim or c[0] < 0 or c[1] < 0:
+            return False
+        
+        if previous_move_num+d in self.data:
+            if self.data[previous_move_num+d] != c:
                 return False
+
+        if previous_move_num+2*d in self.data:
+            n_pos = self.data[previous_move_num+2*d]
+            dist = (n_pos[0]-c[0])**2+(n_pos[1]-c[1])**2
+            # print(f"Current move {previous_move_num}, distance to existing move {dist}")
+            
+            if dist != 5:
+                return False
+        
         return True
 
-    def get_valid_moves(self,ind):
-        moves = {}
-        pos1 = [self.data[ind][0], self.data[ind][1]]
-        pos2 = []
 
-        if ind+1 in self.data:
-            return self.data[ind+1]
-        elif ind+2 in self.data:
-            pos2 = self.data[ind+2]
+    def generate_valid_moves(self, previous_move_num, d): 
+        # d so we can generate moves from 2 -> 1
+        # knight_moves = []
+        # steps = [[-1,1], [[1,2],[2,1]]]
+        # for a in steps[0]:
+        #     for b in steps[0]:
+        #         for c in steps[1]:
+        #             knight_moves.append([a*c[0], b*c[1]])
 
-        for m,idx in enumerate(dm):
-            new_move = [pos1[0]+m[0], pos1[1]+m[1]]
-            if new_move[0] >= 0 and new_move[1] >= 0 and new_move[0] < self.dim and new_move[1] < self.dim:
-                moves[idx] = new_move
-            else:
-                moves[idx] = False
+        moves = []
+        for x in range(0, len(knight_moves)):
+            moves.append(False)
         
-        return moves
-    
-    '''
-        Hidden node to account for not starting at 1
-        If a node has no valid successors, that node is removed from the parent node
-        Go point to point forward to find the paths that take x-y+1 steps from step x to step y, x and y are nearest given steps
-    '''
 
-    def construct_graph(self):
-        # start at 1, if a point is not available keep expanding number of moves
-        # if a move and a fixed point do not agree, remove that node
-        self.root = Node(self.data[1], 1)
-        for x in range(2,self.num_moves):
-            if x in self.data:
+        if previous_move_num not in self.data:
+            return moves
+        
+        pos = self.data[previous_move_num]
+        
+        
+
+        for idx,dm in enumerate(knight_moves):
+            c = [pos[0]+dm[0], pos[1]+dm[1]]
+            
+            if self.is_valid_move(c, previous_move_num, d):
+                new_data = deepcopy(self.data)
+                new_data[previous_move_num+d] = c
+                
+                new_region_sums = deepcopy(self.region_sums)
+                new_region_sums[regions[c[0]][c[1]]] += previous_move_num+d
+
+                new_region_complete =  deepcopy(self.region_complete)
                 
 
+                moves[idx] = Node(new_data)
+                # pdb.set_trace()
+            else:
+                moves[idx] = False
+        return moves
+    
+    def answer(self):
+        return sum([max(x)**2 for x in self.grid])
+    
+practice_grid = [
+    [1,0,0,0,0],
+    [0,0,0,0,4],
+    [0,0,0,0,0],
+    [0,0,0,0,0],
+    [0,6,0,0,0]
+]
 
-        pass
+completed_practice_grid = [
+    [1,0,3,0,0],
+    [0,0,0,0,4],
+    [0,2,7,0,0],
+    [8,0,0,5,0],
+    [0,6,9,0,0]
+]
 
-    '''
-        DFS through graph until N steps have passed or region equivalence is found
-    '''
+practice_regions = [
+    [0,0,0,0,0],
+    [0,0,0,0,0],
+    [0,1,0,0,0],
+    [1,1,1,1,0],
+    [1,2,2,0,0]
+]
 
-    def search_graph(self):
-        pass
+large_regions = [
+    [0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,14,0,0,0,0,16,0],
+    [0,0,0,14,0,0,0,0,16,0],
+    [0,0,14,14,14,14,15,16,16,16],
+    [1,0,14,0,0,13,15,15,15,15],
+    [1,0,0,0,13,13,13,12,12,15],
+    [1,2,2,9,13,10,10,12,12,7],
+    [1,3,2,9,9,11,11,11,12,7],
+    [1,3,4,9,8,8,8,6,6,7],
+    [3,3,4,5,5,5,5,5,6,7],
+]
+
+large_grid_data = {
+    12: [0,0],
+    5: [1,6],
+    8: [2,6],
+    23: [1,8],
+    14: [3,3],
+    2: [5,1],
+    20: [6,4],
+    33: [7,4],
+    28: [9,9]
+}
+
+large_grid = []
+for x in range(0,10):
+    large_grid.append([])
+    for y in range(0,10):
+        large_grid[x].append(0)
+
+for k in large_grid_data.keys():
+    large_grid[large_grid_data[k][0]][large_grid_data[k][1]] = k
 
 
-def is_intermediate_move(candidate, pos2, n):
-    if len(pos2) == 0:
+# test_root = Node(completed_grid)
+# print(test_root.regions_equivalent(regions))
+
+
+    
+def search_graph(regions, current_node):
+    
+    if current_node.regions_equivalent(regions):
+        print(np.matrix(current_node.grid))
+        print(current_node.answer())
         return True
-
-    moves = get_valid_moves(candidate, [], n)
-    if pos2 in moves:
-        return True
-    return False
-
-def find_solved_puzzle(regions, grid):    
-    if regions_equivalent(regions, state):
-        return grid
     
-
-    data = grid2data(grid)
-    n = data["size"]
-    # Start with 1, if it doesn't exist populate all zeroes
-    if 1 not in data:
-        for x in range(0,n):
-            for y in range(0,n):
-                if grid[x][y] == 0:
-                    grid[x][y] = 1
-                    test_grid = find_solved_puzzle(regions, grid)
-                    if test_grid != False:
-                        return test_grid
+    previous_move_num = current_node.next_empty_move()
+    moves = current_node.generate_valid_moves(previous_move_num, 1)
     
-    for x in range(1,n**2-1):
-        next_pos = []
-        moves = get_valid_moves(data[x], next_pos, n)
-        if x not in data:
-            for move in valid_moves:
-                grid[move[0]][move[1]] = x
-                test_grid = find_solved_puzzle(regions, grid)
-                if test_grid != False:
-                    return test_grid
-    
-    print("Check for unsolvability")
-    return False
-        
+    for move in moves:
+        if move != False:
+            # print("---")
+            # print(np.matrix(current_node.grid))
 
-
-
-    
-    
-
-    
-
+            # print(f"Attempting to move from {previous_move_num}({move.data[previous_move_num]}) to {previous_move_num+1}({move.data[previous_move_num+1]})")
+            # print(np.matrix(move.grid))
+            # print("---")
+            search_graph(regions, move)
     pass
+
+
+# Solution for large regions
+
+# root = Node(practice_grid)
+# search_graph(root)
+
+root = Node(large_grid)
+moves = root.generate_valid_moves(2, -1)
+for move_root in moves:
+    if move_root != False:
+        print(" ")
+        print(np.matrix(move_root.grid))
+        search_graph(large_regions, move_root)
+# print(root.next_empty_move())
+# root.generate_valid_moves(1,1)
 
