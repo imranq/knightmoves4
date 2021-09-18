@@ -1,5 +1,19 @@
 from knightgraph import *
-import time
+
+def data2grid(data, size):
+    grid = []
+    for x in range(0,size):
+        grid.append([])
+        for y in range(0,size):
+            grid[x].append(0)
+    
+    for k in data.keys():
+        grid[data[k][0]][data[k][1]] = k
+    
+    return grid
+
+
+
 
 practice_grid = [
     [1,0,0,0,0],
@@ -50,15 +64,21 @@ large_grid_data = {
     28: [9,9]
 }
 
-large_grid = []
-for x in range(0,10):
-    large_grid.append([])
-    for y in range(0,10):
-        large_grid[x].append(0)
 
-for k in large_grid_data.keys():
-    large_grid[large_grid_data[k][0]][large_grid_data[k][1]] = k
+medium_grid_data = {
+    12: [0,0],
+    5: [1,3],
+    8: [2,4],
+    13: [1,5],
+    14: [3,3],
+    2: [5,1],
+}
 
+large_grid = data2grid(large_grid_data, 10)
+medium_grid = data2grid(medium_grid_data, 8)
+# print(np.matrix(large_grid))
+# print(" ")
+# print(np.matrix(large_regions))
 
 import time
 start_time = time.time()
@@ -66,11 +86,16 @@ start_time = time.time()
 # root = Node(practice_grid, practice_regions)
 # search_graph(root)
 
-root = Node(large_grid, large_regions)
+print("--- %s seconds ---" % (time.time() - start_time))
+vals = [33, 34, 50, 51, 67, 68, 84, 85]
+root = None
+root = Node(large_grid, large_regions, 50)
 moves = root.generate_valid_moves(2, -1)
 for move_root in moves:
     if move_root != False:
         print(" ")
         print(np.matrix(move_root.grid))
         search_graph(move_root)
+        print("--- %s seconds ---" % (time.time() - start_time))
+
 print("--- %s seconds ---" % (time.time() - start_time))
